@@ -67,12 +67,15 @@ def train(args):
                                         **train_cfg_dict["policy"],
                                         **train_cfg_dict["encoder"]).to(env.device)
     
+    train_cfg.runner.experiment_name = "rma-student"
+    log_root = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name)
+    log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
     student_runner = StudentRunner( env=env,
                                     env_cfg=env_cfg_dict,
                                     train_cfg=train_cfg_dict,
                                     teacher=teacher,
                                     student=student,
-                                    log_dir="/home/gymuser/go1-legged_gym/logs/student",
+                                    log_dir=log_dir,
                                     device=env.device)
 
     student_runner.learn(   num_learning_iterations=train_cfg.runner.max_iterations, 

@@ -133,6 +133,7 @@ class LeggedRobot(BaseTask):
         self.last_last_actions[:] = torch.clone(self.last_actions[:])
         self.last_actions[:] = self.actions[:]
         self.last_dof_vel[:] = self.dof_vel[:]
+        self.last_dof_pos[:] = self.dof_pos[:]
         self.last_root_vel[:] = self.root_states[:, 7:13]
 
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
@@ -174,6 +175,7 @@ class LeggedRobot(BaseTask):
         self.last_last_actions[env_ids] = 0.
         self.last_actions[env_ids] = 0.
         self.last_dof_vel[env_ids] = 0.
+        self.last_dof_pos[env_ids] = self.dof_pos[env_ids]
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
@@ -535,6 +537,7 @@ class LeggedRobot(BaseTask):
         self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
         self.last_last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
+        self.last_dof_pos = torch.zeros_like(self.dof_pos)
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # x vel, y vel, yaw vel, heading
         self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device, requires_grad=False,) # TODO change this
@@ -891,6 +894,7 @@ class LeggedRobot(BaseTask):
     def _reward_action_rate(self):
         # Penalize changes in actions
         return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
+        # return torch.sum(torch.square(self.last_dof_pos - self.dof_pos), dim=1)
     
     def _reward_collision(self):
         # Penalize collisions on selected bodies

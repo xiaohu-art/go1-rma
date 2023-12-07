@@ -182,6 +182,16 @@ def export_policy_as_jit(actor_critic, path):
         # assumes LSTM: TODO add GRU
         exporter = PolicyExporterLSTM(actor_critic)
         exporter.export(path)
+    elif hasattr(actor_critic, 'encoder'):
+        os.makedirs(path, exist_ok=True)
+        path_policy = os.path.join(path, 'policy_1.pt')
+        model = copy.deepcopy(actor_critic.actor).to('cpu')
+        traced_script_module = torch.jit.script(model)
+        traced_script_module.save(path_policy)
+        path_encoder = os.path.join(path, 'encoder_1.pt')
+        encoder = copy.deepcopy(actor_critic.encoder).to('cpu')
+        traced_script_module = torch.jit.script(encoder)
+        traced_script_module.save(path_encoder)
     else: 
         os.makedirs(path, exist_ok=True)
         path = os.path.join(path, 'policy_1.pt')

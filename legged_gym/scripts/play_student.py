@@ -78,7 +78,7 @@ def play(args):
                                         **train_cfg_dict["policy"],
                                         **train_cfg_dict["encoder"]).to(env.device)
     
-    loaded_dict = torch.load("/home/gymuser/go1-legged_gym/logs/student/model_2750.pt")
+    loaded_dict = torch.load("/home/gymuser/go1-rma/logs/rma-student/Dec07_14-30-03_/model_1400.pt")
     student.load_state_dict(loaded_dict["model_state_dict"])
 
     obs_history = torch.zeros(  (env_cfg.env.num_envs, env_cfg.env.num_history * env_cfg.env.num_base_obs), 
@@ -88,7 +88,7 @@ def play(args):
     
     # export policy as a jit module (used to run it from C++)
     if EXPORT_POLICY:
-        path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'policies')
+        path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', args.experiment_name, 'exported', 'policies')
         export_policy_as_jit(student, path)
         print('Exported policy as jit script to: ', path)
 
@@ -123,7 +123,7 @@ def play(args):
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     from datetime import datetime
     video_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos')
-    experiment_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos', train_cfg.runner.experiment_name)
+    experiment_dir = os.path.join(LEGGED_GYM_ROOT_DIR, 'videos', args.experiment_name)
     dir = os.path.join(experiment_dir, datetime.now().strftime('%b%d_%H-%M-%S')+'.mp4')
     if not os.path.exists(video_dir):
         os.mkdir(video_dir)

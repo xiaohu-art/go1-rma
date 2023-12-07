@@ -54,9 +54,9 @@ class ActorCritic(nn.Module):
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str([key for key in kwargs.keys()]))
         super(ActorCritic, self).__init__()
         self.is_teacher = is_teacher
-        num_base_obs = env_cfg["env"]["num_base_obs"]
-        num_height_obs = env_cfg["env"]["num_height_obs"]
-        num_extrinsic_obs = env_cfg["env"]["num_extrinsic_obs"]
+        self.num_base_obs = num_base_obs = env_cfg["env"]["num_base_obs"]
+        self.nunum_height_obs = num_height_obs = env_cfg["env"]["num_height_obs"]
+        self.nunum_extrinsic_obs = num_extrinsic_obs = env_cfg["env"]["num_extrinsic_obs"]
 
         activation = get_activation(activation)
         self.get_base_obs = lambda obs: obs[:, :num_base_obs]
@@ -155,7 +155,7 @@ class ActorCritic(nn.Module):
         return self.distribution.sample()
 
     def act_student(self, observations, **kwargs):
-        base_obs = self.get_base_obs(observations)
+        base_obs = observations[:, -self.num_base_obs:]
         latent = self.encoder(observations)
         actor_input_obs = torch.cat((base_obs, latent), dim=-1)
         return self.actor(actor_input_obs), latent

@@ -45,9 +45,9 @@ from tqdm import tqdm
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
     # env_cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
-    env_cfg.terrain.terrain_proportions = [0., 0.1, 0.35, 0.35, 0.2]
+    env_cfg.terrain.terrain_proportions = [0., 0., 0.35, 0.35, 0.3]
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
@@ -88,14 +88,14 @@ def play(args):
     camera_properties = gymapi.CameraProperties()
     camera_properties.width = video_width
     camera_properties.height = video_height
-    h1 = env.gym.create_camera_sensor(env.envs[0], camera_properties)
+    h1 = env.gym.create_camera_sensor(env.envs[5], camera_properties)
     camera_offset = gymapi.Vec3(1, -1, 0.5)
     camera_rotation = gymapi.Quat.from_axis_angle(gymapi.Vec3(-0.3, 0.2, 1),
                                                   np.deg2rad(135))
-    actor_handle = env.gym.get_actor_handle(env.envs[0], 0)
-    body_handle = env.gym.get_actor_rigid_body_handle(env.envs[0], actor_handle, 0)
+    actor_handle = env.gym.get_actor_handle(env.envs[5], 0)
+    body_handle = env.gym.get_actor_rigid_body_handle(env.envs[5], actor_handle, 0)
     env.gym.attach_camera_to_body(
-        h1, env.envs[0], body_handle,
+        h1, env.envs[5], body_handle,
         gymapi.Transform(camera_offset, camera_rotation),
         gymapi.FOLLOW_POSITION)
 
@@ -112,9 +112,9 @@ def play(args):
         os.mkdir(experiment_dir)
     video = cv2.VideoWriter(dir, fourcc, 50.0, (video_width, video_height))
 
-    for i in tqdm(range(2*int(env.max_episode_length))):
+    for i in tqdm(range(3*int(env.max_episode_length))):
         # print(obs)
-        actions = policy(obs.detach())
+        actions, _ = policy(obs.detach())
         if FIX_COMMAND:
             env.commands[:, 0] = 1.
             env.commands[:, 1] = 0.
@@ -126,14 +126,14 @@ def play(args):
             env.gym.fetch_results(env.sim, True)
             env.gym.step_graphics(env.sim)
             env.gym.render_all_camera_sensors(env.sim)
-            env.gym.write_camera_image_to_file(env.sim, env.envs[0], h1,gymapi.IMAGE_COLOR, filename)
+            env.gym.write_camera_image_to_file(env.sim, env.envs[5], h1,gymapi.IMAGE_COLOR, filename)
             print(filename)
             img_idx += 1 
         
         env.gym.fetch_results(env.sim, True)
         env.gym.step_graphics(env.sim)
         env.gym.render_all_camera_sensors(env.sim)
-        img = env.gym.get_camera_image(env.sim, env.envs[0], h1,gymapi.IMAGE_COLOR)
+        img = env.gym.get_camera_image(env.sim, env.envs[5], h1,gymapi.IMAGE_COLOR)
         img = np.reshape(img, (1080, 1920, 4))
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         video.write(img[..., :3])

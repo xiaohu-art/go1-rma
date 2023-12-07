@@ -109,13 +109,14 @@ class Go1RoughCfg( LeggedRobotCfg ):
         base_height_target = 0.25
         class scales( LeggedRobotCfg.rewards.scales ):
             torques = -0.0002
-            dof_pos_limits = -20.0
-            feet_air_time = 5.0
-            stand_still = -0.5
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 1.0
-            ang_vel_xy = -0.01
-            orientation = -1
+            # dof_pos_limits = -20.0
+            dof_pos_limits = -10.0
+            # feet_air_time = 5.0
+            # stand_still = -0.5
+            # tracking_lin_vel = 1.0
+            # tracking_ang_vel = 1.0
+            # ang_vel_xy = -0.01
+            # orientation = -1
             
 
 class Go1RoughCfgPPO( LeggedRobotCfgPPO ):
