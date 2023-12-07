@@ -34,7 +34,9 @@ from datetime import datetime
 
 import isaacgym
 from legged_gym.envs import *
-from legged_gym.utils import get_args, task_registry
+from legged_gym.utils import get_args, class_to_dict, task_registry
+from rsl_rl.modules import ActorCritic
+from rsl_rl.runners import StudentRunner
 import torch
 
 def train(args):
@@ -49,12 +51,33 @@ def train(args):
                                                             name=args.task,
                                                             args=args,
                                                             train_cfg=train_cfg)
-    teacher = ppo_runner.get_inference_policy(device=env.device)
-    print(teacher)
+    teacher = ppo_runner.alg.actor_critic.to(env.device)
 
-    train_cfg.runner.resume = False
-    train_cfg.encoder.is_teacher = False
+    env_cfg_dict = class_to_dict(env_cfg)
+    train_cfg_dict = class_to_dict(train_cfg)
+    train_cfg_dict["encoder"]["is_teacher"] = False
+    train_cfg_dict["encoder"]["mlp_input_dim"] = env_cfg_dict["env"]["num_base_obs"] * env_cfg_dict["env"]["num_history"]
+    train_cfg_dict["encoder"]["mlp_output_dim"] = env_cfg_dict["env"]["num_latent"]
+    train_cfg_dict["encoder"]["mlp_hidden_dims"] = [1024, 512, 256, 128]
+
+    student: ActorCritic = ActorCritic( env_cfg_dict,
+                                        env_cfg_dict["env"]["num_actor_obs"],
+                                        env_cfg_dict["env"]["num_privileged_obs"],
+                                        env_cfg_dict["env"]["num_actions"],
+                                        **train_cfg_dict["policy"],
+                                        **train_cfg_dict["encoder"]).to(env.device)
     
+    student_runner = StudentRunner( env=env,
+                                    env_cfg=env_cfg_dict,
+                                    train_cfg=train_cfg_dict,
+                                    teacher=teacher,
+                                    student=student,
+                                    log_dir="/home/gymuser/go1-legged_gym/logs/student",
+                                    device=env.device)
+
+    student_runner.learn(   num_learning_iterations=train_cfg.runner.max_iterations, 
+                            init_at_random_ep_len=True)
+
 if __name__ == '__main__':
     args = get_args()
     train(args)

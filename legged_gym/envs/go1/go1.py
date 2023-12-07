@@ -56,8 +56,8 @@ class Go1(LeggedRobot):
         self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
         self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
         self.reset_buf |= self.time_out_buf
-        self.body_low_buf = (self.root_states[:, 2] - torch.mean(self._get_heights(), dim=1)) < 0.25
-        self.reset_buf |= self.body_low_buf
+        # self.body_low_buf = (self.root_states[:, 2] - torch.mean(self._get_heights(), dim=1)) < 0.25
+        # self.reset_buf |= self.body_low_buf
         
     def _init_buffers(self):
         super()._init_buffers()

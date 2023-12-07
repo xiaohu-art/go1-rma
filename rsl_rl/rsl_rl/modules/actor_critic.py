@@ -158,8 +158,7 @@ class ActorCritic(nn.Module):
         base_obs = self.get_base_obs(observations)
         latent = self.encoder(observations)
         actor_input_obs = torch.cat((base_obs, latent), dim=-1)
-        self.update_distribution(actor_input_obs)
-        return self.distribution.sample()
+        return self.actor(actor_input_obs), latent
 
     def act(self, observations, **kwargs):
         if self.is_teacher:
