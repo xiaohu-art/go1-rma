@@ -28,29 +28,33 @@
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
-from time import time
 import numpy as np
 import os
+from datetime import datetime
 
-from isaacgym.torch_utils import *
-from isaacgym import gymtorch, gymapi, gymutil
-
+import isaacgym
+from legged_gym.envs import *
+from legged_gym.utils import get_args, task_registry
 import torch
-from typing import Tuple, Dict
-from legged_gym.envs import LeggedRobot
-from legged_gym.envs.base.legged_robot_estimate import LeggedRobotEstimate
 
-class BravoEstimate(LeggedRobotEstimate):
-    # Added Rewards
-    def _reward_no_fly(self):
-        contacts = self.contact_forces[:, self.feet_indices, 2] > 0.1
-        single_contact = torch.sum(1.*contacts, dim=1)==1
-        return 1.*single_contact
-    def _reward_no_contact(self):
-        contacts = self.contact_forces[:, self.feet_indices, 2] > 0.1
-        no_contact = torch.sum(1. * contacts, dim=1) == 1
-        return 1. * no_contact
-    def _reward_double_contact(self):
-        contacts = self.contact_forces[:, self.feet_indices, 2] > 0.1
-        double_contact = torch.sum(1. * contacts, dim=1) == 2
-        return 1. * double_contact
+def train(args):
+    env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
+    env, _ = task_registry.make_env(    name=args.task, 
+                                        args=args, 
+                                        env_cfg=env_cfg)
+
+    train_cfg.runner.resume = True
+    ppo_runner, train_cfg = task_registry.make_alg_runner(  env=env, 
+                                                            env_cfg=env_cfg,
+                                                            name=args.task,
+                                                            args=args,
+                                                            train_cfg=train_cfg)
+    teacher = ppo_runner.get_inference_policy(device=env.device)
+    print(teacher)
+
+    train_cfg.runner.resume = False
+    train_cfg.encoder.is_teacher = False
+    
+if __name__ == '__main__':
+    args = get_args()
+    train(args)

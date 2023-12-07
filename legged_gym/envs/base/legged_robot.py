@@ -278,6 +278,8 @@ class LeggedRobot(BaseTask):
 
             for s in range(len(props)):
                 props[s].friction = self.friction_coeffs[env_id]
+        else:
+            self.friction_coeffs[env_id] = props[0].friction
         return props
 
     def _process_dof_props(self, props, env_id):
@@ -319,6 +321,7 @@ class LeggedRobot(BaseTask):
         if self.cfg.domain_rand.randomize_base_mass:
             rng = self.cfg.domain_rand.added_mass_range
             props[0].mass += np.random.uniform(rng[0], rng[1])
+        self.body_masses[env_id] = props[0].mass
         return props
     
     def _post_physics_step_callback(self):
@@ -496,7 +499,7 @@ class LeggedRobot(BaseTask):
         noise_vec[int(12+self.cfg.env.num_actions*2):int(12+self.cfg.env.num_actions*3)] = 0. # previous actions
         if self.cfg.terrain.measure_heights:
             noise_vec[48:235] = noise_scales.height_measurements* noise_level * self.obs_scales.height_measurements
-        return noise_vec
+        return noise_vec[:235]
 
     #----------------------------------------
     def _init_buffers(self):
@@ -709,6 +712,8 @@ class LeggedRobot(BaseTask):
         env_upper = gymapi.Vec3(0., 0., 0.)
         self.actor_handles = []
         self.envs = []
+        self.body_masses = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+        self.friction_coeffs = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         for i in range(self.num_envs):
             # create env instance
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, int(np.sqrt(self.num_envs)))

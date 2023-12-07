@@ -42,9 +42,14 @@ from legged_gym.envs import LeggedRobot
 class Go1(LeggedRobot):
     def step(self, actions):
         self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras = super().step(actions)
+        self.obs_buf = torch.cat((  self.obs_buf[:, 3:], 
+                                    self.obs_buf[:, :3],
+                                    self.body_masses.view(self.num_envs, 1),
+                                    self.friction_coeffs.view(self.num_envs, 1).to(self.device)
+                                    ), dim=-1)
         self.privileged_obs_buf = torch.clone(self.obs_buf)
-        self.obs_buf[:, :6] *= 0.
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+    
     def check_termination(self):
         """ Check if environments need to be reset
         """
@@ -53,6 +58,7 @@ class Go1(LeggedRobot):
         self.reset_buf |= self.time_out_buf
         self.body_low_buf = (self.root_states[:, 2] - torch.mean(self._get_heights(), dim=1)) < 0.25
         self.reset_buf |= self.body_low_buf
+        
     def _init_buffers(self):
         super()._init_buffers()
         self.height_points = self._init_height_points()

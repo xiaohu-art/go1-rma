@@ -30,11 +30,29 @@
 
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
+NUM_BASE_OBS = 45
+NUM_HEIGHT_OBS = 187
+NUM_EXTRINSIC_OBS = 5
+NUM_LATENT = 16
+NUM_HISTORY = 50
+
 class Go1RoughCfg( LeggedRobotCfg ):
     class env( LeggedRobotCfg.env ):
-        num_observations = 48
-        num_privileged_obs = 48
-        
+        num_base_obs = NUM_BASE_OBS
+        num_height_obs = NUM_HEIGHT_OBS
+        num_extrinsic_obs = NUM_EXTRINSIC_OBS
+
+        num_latent = NUM_LATENT
+        num_history = NUM_HISTORY
+
+        num_actor_obs = num_base_obs + num_latent
+        num_observations = 237
+        num_privileged_obs = 237
+
+    class terrain( LeggedRobotCfg.terrain ):
+        terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
+        measure_heights = True
+
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.42] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
@@ -54,10 +72,6 @@ class Go1RoughCfg( LeggedRobotCfg ):
             'RR_calf_joint': -1.5,    # [rad]
         }
     
-    class terrain( LeggedRobotCfg.terrain ):
-        terrain_proportions = [0.5, 0.5, 0., 0., 0.]
-        measure_heights = False
-
     class noise( LeggedRobotCfg.noise ):
         class noise_scales( LeggedRobotCfg.noise.noise_scales ):
             dof_pos = 0.02
@@ -79,8 +93,8 @@ class Go1RoughCfg( LeggedRobotCfg ):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go1/urdf/go1.urdf'
         name = "go1"
         foot_name = "foot"
-        penalize_contacts_on = []
-        terminate_after_contacts_on = ["base", "thigh", "calf"]
+        penalize_contacts_on = ["thigh", "calf"]
+        terminate_after_contacts_on = ["base"]
         self_collisions = 1 # 1 to disable, 0 to enable...bitwise filter
     
     class commands( LeggedRobotCfg.commands ):
@@ -110,5 +124,10 @@ class Go1RoughCfgPPO( LeggedRobotCfgPPO ):
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
         experiment_name = 'rough_go1'
-
-  
+    
+    class encoder:
+        # is_teacher = False
+        is_teacher = True
+        mlp_input_dim = NUM_HEIGHT_OBS + NUM_EXTRINSIC_OBS if is_teacher else NUM_BASE_OBS * NUM_HISTORY
+        mlp_output_dim = NUM_LATENT
+        mlp_hidden_dims = [256, 128] if is_teacher else [1024, 512, 256, 128]

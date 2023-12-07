@@ -46,7 +46,8 @@ def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
-    env_cfg.terrain.mesh_type = 'plane'
+    # env_cfg.terrain.terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
+    env_cfg.terrain.terrain_proportions = [0., 0.1, 0.35, 0.35, 0.2]
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
@@ -119,10 +120,6 @@ def play(args):
             env.commands[:, 1] = 0.
             env.commands[:, 2] = 0.
         obs, _, rews, dones, infos = env.step(actions.detach())
-        if FIX_COMMAND:
-            env.commands[:, 0] = 1.
-            env.commands[:, 1] = 0.
-            env.commands[:, 2] = 0.
         if RECORD_FRAMES:
             name = str(img_idx).zfill(4)
             filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames', name + ".png")

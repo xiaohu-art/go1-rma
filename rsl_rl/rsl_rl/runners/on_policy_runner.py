@@ -53,6 +53,7 @@ class OnPolicyRunner:
         self.cfg=train_cfg["runner"]
         self.alg_cfg = train_cfg["algorithm"]
         self.policy_cfg = train_cfg["policy"]
+        self.encoder_cfg = train_cfg["encoder"]
         self.env_cfg = env_cfg
         self.train_cfg = train_cfg
         self.device = device
@@ -62,10 +63,12 @@ class OnPolicyRunner:
         else:
             num_critic_obs = self.env.num_obs
         actor_critic_class = eval(self.cfg["policy_class_name"]) # ActorCritic
-        actor_critic: ActorCritic = actor_critic_class( self.env.num_obs,
+        actor_critic: ActorCritic = actor_critic_class( self.env_cfg,
+                                                        self.env.num_obs,
                                                         num_critic_obs,
                                                         self.env.num_actions,
-                                                        **self.policy_cfg).to(self.device)
+                                                        **self.policy_cfg,
+                                                        **self.encoder_cfg).to(self.device)
         alg_class = eval(self.cfg["algorithm_class_name"]) # PPO
         self.alg: PPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]

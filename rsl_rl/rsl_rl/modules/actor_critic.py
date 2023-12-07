@@ -37,21 +37,45 @@ from torch.nn.modules import rnn
 
 class ActorCritic(nn.Module):
     is_recurrent = False
-    def __init__(self,  num_actor_obs,
+    def __init__(self,  env_cfg,
+                        num_actor_obs,
                         num_critic_obs,
                         num_actions,
                         actor_hidden_dims=[256, 256, 256],
                         critic_hidden_dims=[256, 256, 256],
                         activation='elu',
                         init_noise_std=1.0,
+                        is_teacher=True,
+                        mlp_input_dim=None,
+                        mlp_output_dim=None,
+                        mlp_hidden_dims=[256, 256, 256],
                         **kwargs):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str([key for key in kwargs.keys()]))
         super(ActorCritic, self).__init__()
+        self.is_teacher = is_teacher
+        num_base_obs = env_cfg["env"]["num_base_obs"]
+        num_height_obs = env_cfg["env"]["num_height_obs"]
+        num_extrinsic_obs = env_cfg["env"]["num_extrinsic_obs"]
 
         activation = get_activation(activation)
+        self.get_base_obs = lambda obs: obs[:, :num_base_obs]
+        self.get_height_obs = lambda obs: obs[:, num_base_obs:num_base_obs+num_height_obs]
+        self.get_extrinsic_obs = lambda obs: obs[:, num_base_obs+num_height_obs:num_base_obs+num_height_obs+num_extrinsic_obs]
 
-        mlp_input_dim_a = num_actor_obs
+        # Encoder
+        encoder_layers = []
+        encoder_layers.append(nn.Linear(mlp_input_dim, mlp_hidden_dims[0]))
+        encoder_layers.append(activation)
+        for l in range(len(mlp_hidden_dims)):
+            if l == len(mlp_hidden_dims) - 1:
+                encoder_layers.append(nn.Linear(mlp_hidden_dims[l], mlp_output_dim))
+            else:
+                encoder_layers.append(nn.Linear(mlp_hidden_dims[l], mlp_hidden_dims[l + 1]))
+                encoder_layers.append(activation)
+        self.encoder = nn.Sequential(*encoder_layers)
+
+        mlp_input_dim_a = env_cfg["env"]["num_base_obs"] + env_cfg["env"]["num_latent"]
         mlp_input_dim_c = num_critic_obs
 
         # Policy
@@ -78,6 +102,7 @@ class ActorCritic(nn.Module):
                 critic_layers.append(activation)
         self.critic = nn.Sequential(*critic_layers)
 
+        print(f"Encoder MLP: {self.encoder}")
         print(f"Actor MLP: {self.actor}")
         print(f"Critic MLP: {self.critic}")
 
@@ -120,16 +145,39 @@ class ActorCritic(nn.Module):
         mean = self.actor(observations)
         self.distribution = Normal(mean, mean*0. + self.std)
 
-    def act(self, observations, **kwargs):
-        self.update_distribution(observations)
+    def act_teacher(self, observations, **kwargs):
+        base_obs = self.get_base_obs(observations)
+        height_obs = self.get_height_obs(observations)
+        extrinsic_obs = self.get_extrinsic_obs(observations)
+        latent = self.encoder(torch.cat((height_obs, extrinsic_obs), dim=-1))
+        actor_input_obs = torch.cat((base_obs, latent), dim=-1)
+        self.update_distribution(actor_input_obs)
         return self.distribution.sample()
+
+    def act_student(self, observations, **kwargs):
+        base_obs = self.get_base_obs(observations)
+        latent = self.encoder(observations)
+        actor_input_obs = torch.cat((base_obs, latent), dim=-1)
+        self.update_distribution(actor_input_obs)
+        return self.distribution.sample()
+
+    def act(self, observations, **kwargs):
+        if self.is_teacher:
+            return self.act_teacher(observations, **kwargs)
+        else:
+            return self.act_student(observations, **kwargs)
     
     def get_actions_log_prob(self, actions):
         return self.distribution.log_prob(actions).sum(dim=-1)
 
     def act_inference(self, observations):
-        actions_mean = self.actor(observations)
-        return actions_mean
+        base_obs = self.get_base_obs(observations)
+        height_obs = self.get_height_obs(observations)
+        extrinsic_obs = self.get_extrinsic_obs(observations)
+        latent = self.encoder(torch.cat((height_obs, extrinsic_obs), dim=-1))
+        actor_input_obs = torch.cat((base_obs, latent), dim=-1)
+        actions_mean = self.actor(actor_input_obs)
+        return actions_mean, latent
 
     def evaluate(self, critic_observations, **kwargs):
         value = self.critic(critic_observations)
