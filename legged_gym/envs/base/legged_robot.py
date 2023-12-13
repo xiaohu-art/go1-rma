@@ -324,6 +324,17 @@ class LeggedRobot(BaseTask):
             rng = self.cfg.domain_rand.added_mass_range
             props[0].mass += np.random.uniform(rng[0], rng[1])
         self.body_masses[env_id] = props[0].mass
+
+        if self.cfg.domain_rand.randomize_com_displacement:
+            props[0].com = gymapi.Vec3( self.com_displacement[env_id, 0],
+                                        self.com_displacement[env_id, 1],
+                                        self.com_displacement[env_id, 2])
+
+        if self.cfg.domain_rand.randomize_link_mass:
+            rng = self.cfg.domain_rand.link_mass_range
+            scale = np.random.uniform(rng[0], rng[1])
+            for i in range(1, len(props)):
+                props[i].mass *= scale
         return props
     
     def _post_physics_step_callback(self):
@@ -717,6 +728,13 @@ class LeggedRobot(BaseTask):
         self.envs = []
         self.body_masses = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
         self.friction_coeffs = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+        self.com_displacement = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device, requires_grad=False)
+        if self.cfg.domain_rand.randomize_com_displacement:
+            self.com_displacement = torch_rand_float(   self.cfg.domain_rand.com_displacement_range[0],
+                                                        self.cfg.domain_rand.com_displacement_range[1],
+                                                        (self.num_envs, 3),
+                                                        device=self.device
+                                                    )
         for i in range(self.num_envs):
             # create env instance
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, int(np.sqrt(self.num_envs)))
